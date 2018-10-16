@@ -1,7 +1,7 @@
 package com.kirilo.faynoe.repopars.controller;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
+import com.kirilo.faynoe.repopars.util.ParsUtil;
+import org.jboss.logging.Logger;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,34 +10,51 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.text.NumberFormat;
 import java.text.ParseException;
-import java.util.Locale;
 
 @RestController
 @RequestMapping(VoteRestController.REST_EREP)
 public class VoteRestController {
     static final String REST_EREP = "/erep";
 
+    private final Logger logger = Logger.getLogger(VoteRestController.class);
+    private final ParsUtil util;
+
+    public VoteRestController() {
+        util = new ParsUtil();
+    }
+
     @GetMapping(value = "/{id}")
     public String getErep(@PathVariable int id) throws IOException, ParseException {
+        Element content = util.getContent(id);
 
-        String webPage = "https://www.erepublik.com/en/citizen/profile/" + id;
+        Elements militaryBox = util.getMilitaryBox(content);
+        Elements militaryBoxWide = util.getMilitaryBoxWide(content);
 
-//        Document document = Jsoup.connect(webPage).userAgent("Jsoup client").timeout(5000).get();
-        Document document = Jsoup.connect(webPage).userAgent("Mozilla/5.0").get();
+        Elements militaryRank = util.getMilitaryRank(militaryBoxWide);
+        Elements aircraftRank = util.getAircraftRank(militaryBoxWide);
 
-        System.out.println(document.title());
-        Elements elements = document.getElementById("citizenprofile").getElementById("container")
-                .getElementById("content").getElementsByClass("citizen_military_box")
-                .tagName("citizen_military_box");
-        Element element = elements.get(1);
-        Elements allElements = element.getAllElements();
-        Element element3 = allElements.get(3);
+        //Pars strength
+        Elements groundElements = util.getGroundElements(militaryBox);
+        Elements strengthElements = util.getStrengthElements(militaryBox);
 
-        NumberFormat format = NumberFormat.getInstance(Locale.UK);
-        Number number = format.parse(element3.text());
+/*        int i = 0;
+        for (Element elem : allElements1) {
+            System.out.print(i + "------->   ");
+            System.out.println(elem.text());
+            ++i;
+        }*/
 
-        return number instanceof Double ? number.toString() : element3.text();
+        Double strength = util.getStrength(strengthElements);
+
+//Ground
+        logger.info(util.getNameElement(groundElements) + " " + util.getDivision(groundElements));
+        logger.info(util.getNameElement(strengthElements) + " " + strength);
+        logger.info(util.getNameElement(militaryRank) + " " + util.getValueElement(militaryRank)
+                + " " + util.getRankName(militaryRank));
+        logger.info(util.getNameElement(aircraftRank) + " " + util.getValueElement(aircraftRank)
+                + " " + util.getRankName(aircraftRank));
+
+        return "" + strength;
     }
 }
